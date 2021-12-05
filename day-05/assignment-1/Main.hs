@@ -93,9 +93,6 @@ expandLine l@(Line (Point x1 y1) (Point x2 y2))
     | isVertical l = map (Point x1) [min y1 y2..max y1 y2]
     | otherwise = []
 
-isLegal :: Line -> Bool
-isLegal line = isHorizontal line || isVertical line
-
 isHorizontal :: Line -> Bool
 isHorizontal (Line (Point _ y1) (Point _ y2)) = y1 == y2
 
