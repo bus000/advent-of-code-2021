@@ -414,3 +414,15 @@ executable day-19-1
                        containers ==0.6.*
   hs-source-dirs:      day-19/assignment-1/
   ghc-options:         -Wall -O2
+
+executable day-19-2
+  main-is:             Main.hs
+  build-depends:       base >=4.12 && <4.13,
+                       advent-of-code2021,
+                       text ==1.2.*,
+                       parsec ==3.1.*,
+                       parsec3-numbers ==0.1.*,
+                       matrix ==0.3.*,
+                       containers ==0.6.*
+  hs-source-dirs:      day-19/assignment-2/
+  ghc-options:         -Wall -O2
