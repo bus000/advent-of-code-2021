@@ -11,13 +11,15 @@ cabal-version:       >=1.10
 library
   build-depends:       base >=4.12 && <4.13,
                        text ==1.2.*,
-                       containers ==0.6.*
+                       containers ==0.6.*,
+                       PSQueue ==1.1.*
   exposed-modules:     AdventOfCode,
                        Util,
                        Data.CircularList,
                        Data.Queue,
                        Data.InfMultiSet,
-                       Control.Monad.Misc
+                       Control.Monad.Misc,
+                       Algorithms.Dijkstra
   hs-source-dirs:      lib
   ghc-options:         -Wall
   default-language:    Haskell2010
@@ -493,6 +495,16 @@ executable day-22-2
                        parsec ==3.1.*,
                        parsec3-numbers ==0.1.*
   hs-source-dirs:      day-22/assignment-2/
+  ghc-options:         -Wall -O2
+
+executable day-23-1
+  main-is:             Main.hs
+  build-depends:       base >=4.12 && <4.13,
+                       advent-of-code2021,
+                       text ==1.2.*,
+                       parsec ==3.1.*,
+                       containers ==0.6.*
+  hs-source-dirs:      day-23/assignment-1/
   ghc-options:         -Wall -O2
 
 executable day-24-1
