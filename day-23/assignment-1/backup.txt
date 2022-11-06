@@ -1,0 +1,337 @@
+{- --- Day 23: Amphipod ---
+ -
+ - A group of amphipods notice your fancy submarine and flag you down. "With
+ - such an impressive shell," one amphipod says, "surely you can help us with a
+ - question that has stumped our best scientists."
+ -
+ - They go on to explain that a group of timid, stubborn amphipods live in a
+ - nearby burrow. Four types of amphipods live there: Amber (A), Bronze (B),
+ - Copper (C), and Desert (D). They live in a burrow that consists of a hallway
+ - and four side rooms. The side rooms are initially full of amphipods, and the
+ - hallway is initially empty.
+ -
+ - They give you a diagram of the situation (your puzzle input), including
+ - locations of each amphipod (A, B, C, or D, each of which is occupying an
+ - otherwise open space), walls (#), and open space (.).
+ -
+ - For example:
+ -
+ -    #############
+ -    #...........#
+ -    ###B#C#B#D###
+ -      #A#D#C#A#
+ -      #########
+ -
+ - The amphipods would like a method to organize every amphipod into side rooms
+ - so that each side room contains one type of amphipod and the types are sorted
+ - A-D going left to right, like this:
+ -
+ -    #############
+ -    #...........#
+ -    ###A#B#C#D###
+ -      #A#B#C#D#
+ -      #########
+ -
+ - Amphipods can move up, down, left, or right so long as they are moving into
+ - an unoccupied open space. Each type of amphipod requires a different amount
+ - of energy to move one step: Amber amphipods require 1 energy per step, Bronze
+ - amphipods require 10 energy, Copper amphipods require 100, and Desert ones
+ - require 1000. The amphipods would like you to find a way to organize the
+ - amphipods that requires the least total energy.
+ -
+ - However, because they are timid and stubborn, the amphipods have some extra
+ - rules:
+ -
+ - * Amphipods will never stop on the space immediately outside any room. They
+ -   can move into that space so long as they immediately continue moving.
+ -   (Specifically, this refers to the four open spaces in the hallway that are
+ -   directly above an amphipod starting position.)
+ - * Amphipods will never move from the hallway into a room unless that room is
+ -   their destination room and that room contains no amphipods which do not
+ -   also have that room as their own destination. If an amphipod's starting
+ -   room is not its destination room, it can stay in that room until it leaves
+ -   the room. (For example, an Amber amphipod will not move from the hallway
+ -   into the right three rooms, and will only move into the leftmost room if
+ -   that room is empty or if it only contains other Amber amphipods.)
+ - * Once an amphipod stops moving in the hallway, it will stay in that spot
+ -   until it can move into a room. (That is, once any amphipod starts moving,
+ -   any other amphipods currently in the hallway are locked in place and will
+ -   not move again until they can move fully into a room.)
+ - * In the above example, the amphipods can be organized using a minimum of
+ -   12521 energy. One way to do this is shown below.
+ -
+ - Starting configuration:
+ -
+ -    #############
+ -    #...........#
+ -    ###B#C#B#D###
+ -      #A#D#C#A#
+ -      #########
+ -
+ - One Bronze amphipod moves into the hallway, taking 4 steps and using 40
+ - energy:
+ -
+ -    #############
+ -    #...B.......#
+ -    ###B#C#.#D###
+ -      #A#D#C#A#
+ -      #########
+ -
+ - The only Copper amphipod not in its side room moves there, taking 4 steps and
+ - using 400 energy:
+ -
+ -    #############
+ -    #...B.......#
+ -    ###B#.#C#D###
+ -      #A#D#C#A#
+ -      #########
+ -
+ - A Desert amphipod moves out of the way, taking 3 steps and using 3000 energy,
+ - and then the Bronze amphipod takes its place, taking 3 steps and using 30
+ - energy:
+ -
+ -    #############
+ -    #.....D.....#
+ -    ###B#.#C#D###
+ -      #A#B#C#A#
+ -      #########
+ -
+ - The leftmost Bronze amphipod moves to its room using 40 energy:
+ -
+ -    #############
+ -    #.....D.....#
+ -    ###.#B#C#D###
+ -      #A#B#C#A#
+ -      #########
+ -
+ - Both amphipods in the rightmost room move into the hallway, using 2003 energy
+ - in total:
+ -
+ -    #############
+ -    #.....D.D.A.#
+ -    ###.#B#C#.###
+ -      #A#B#C#.#
+ -      #########
+ -
+ - Both Desert amphipods move into the rightmost room using 7000 energy:
+ -
+ -    #############
+ -    #.........A.#
+ -    ###.#B#C#D###
+ -      #A#B#C#D#
+ -      #########
+ -
+ - Finally, the last Amber amphipod moves into its room, using 8 energy:
+ -
+ -    #############
+ -    #...........#
+ -    ###A#B#C#D###
+ -      #A#B#C#D#
+ -      #########
+ -
+ - What is the least energy required to organize the amphipods?
+ -}
+module Main where
+
+import AdventOfCode
+import qualified Data.Text as T
+import qualified Text.Parsec as P
+import qualified Data.Array as A
+import qualified Data.Maybe as Maybe
+
+data Amphipod = Amber | Bronze | Copper | Desert deriving (Show, Eq, Ord)
+
+data HallwayPosition
+    = Leftmost
+    | Left
+    | LeftMiddle
+    | Middle
+    | RightMiddle
+    | Right
+    | Rightmost
+    deriving (Show, Eq, Ord, A.Ix)
+
+data Hallway = Hallway 
+    { _hallwayPositions :: !(A.Array HallwayPosition (Maybe Amphipod))
+    } deriving (Show, Eq, Ord)
+--data Hallway = Hallway
+    --{ _pos1 :: !(Maybe Amphipod) -- Leftmost.
+    --, _pos2 :: !(Maybe Amphipod) -- Second leftmost.
+    --, _pos3 :: !(Maybe Amphipod) -- Left middle.
+    --, _pos4 :: !(Maybe Amphipod) -- Middle.
+    --, _pos5 :: !(Maybe Amphipod) -- Right middle.
+    --, _pos6 :: !(Maybe Amphipod) -- Second rightmost.
+    --, _pos7 :: !(Maybe Amphipod) -- Rightmost.
+    --} deriving (Show, Eq, Ord)
+
+data Room = Room
+    { _top    :: !(Maybe Amphipod)
+    , _bottom :: !(Maybe Amphipod)
+    } deriving (Show, Eq, Ord)
+
+data Burrow = Burrow
+    { _hallway :: Hallway
+    , _amber   :: !Room
+    , _bronze  :: !Room
+    , _copper  :: !Room
+    , _desert  :: !Room
+    } deriving (Show, Eq, Ord)
+
+-- The price of movement.
+type Price = Int
+
+main :: IO ()
+main = defaultMain parseInput handleInput
+
+handleInput :: Burrow -> IO ()
+handleInput = print
+
+-- Compute all possible moves from the burrow given.
+moves :: Burrow -> [(Burrow, Price)]
+moves burrow = movesFromHallway burrow ++
+    movesFromRoom Amber burrow ++
+    movesFromRoom Bronze burrow ++
+    movesFromRoom Copper burrow ++
+    movesFromRoom Desert burrow
+
+movesFromHallway :: Burrow -> [(Burrow, Price)]
+movesFromHallway
+    = Maybe.catMaybes
+    . map (uncurry toPath)
+    . map extractPods
+    . A.assocs
+    . _hallwayPositions
+    . _hallway
+  where
+    extractPods (pos, Just pod) = Just (pos, pod)
+    extractPods _ = Nothing
+
+    toPath Leftmost Amber = ([Left], 2 * pricePerUnit Amber)
+    toPath Leftmost Bronze = ([Left, LeftMiddle], 4 * pricePerUnit Bronze)
+    toPath Leftmost Copper = ([Left, LeftMiddle, Middle], 6 * pricePerUnit Copper)
+    toPath Leftmost Desert = ([Left, LeftMiddle, Middle, RightMiddle], 8 * pricePerUnit Desert)
+
+    toPath Left Amber = ([], pricePerUnit Amber)
+    toPath Left Bronze = ([LeftMiddle], 3 * pricePerUnit Bronze)
+    toPath Left Copper = ([LeftMiddle, Middle], 5 * pricePerUnit Copper)
+    toPath Left Desert = ([LeftMiddle, Middle, RightMiddle], 7 * pricePerUnit Desert)
+
+    toPath LeftMiddle Amber = ([], pricePerUnit Amber)
+    toPath LeftMiddle Bronze = ([], pricePerUnit Bronze)
+    toPath LeftMiddle Copper = ([Middle], 3 * pricePerUnit Copper)
+    toPath LeftMiddle Desert = ([Middle, RightMiddle], 5 * pricePerUnit Desert)
+
+    toPath Middle Amber = ([LeftMiddle], 3 * pricePerUnit Amber)
+    toPath Middle Bronze = ([], pricePerUnit Bronze)
+    toPath Middle Copper = ([], pricePerUnit Copper)
+    toPath Middle Desert = ([RightMiddle], 3 * pricePerUnit Desert)
+
+    toPath RightMiddle Amber = ([Middle, LeftMiddle], 5 * pricePerUnit Amber)
+    toPath RightMiddle Bronze = ([Middle], 3 * pricePerUnit Bronze)
+    toPath RightMiddle Copper = ([], pricePerUnit Copper)
+    toPath RightMiddle Desert = ([], pricePerUnit Desert)
+
+    toPath Right Amber = ([RightMiddle, Middle, LeftMiddle], 7 * pricePerUnit Amber)
+    toPath Right Bronze = ([RightMiddle, Middle], 5 * pricePerUnit Bronze)
+    toPath Right Copper = ([RightMiddle], 3 * pricePerUnit Copper)
+    toPath Right Desert = ([], pricePerUnit Desert)
+
+    toPath Rightmost Amber = ([Right, RightMiddle, Middle, LeftMiddle], 7 * pricePerUnit Amber)
+    toPath Rightmost Bronze = ([RightMiddle, Middle], 5 * pricePerUnit Bronze)
+    toPath Rightmost Copper = ([RightMiddle], 3 * pricePerUnit Copper)
+    toPath Rightmost Desert = ([], pricePerUnit Desert)
+
+    = Leftmost
+    | Left
+    | LeftMiddle
+    | Middle
+    | RightMiddle
+    | Right
+    | Rightmost
+
+--    #############
+--    #...........#
+--    ###B#C#B#D###
+--      #A#D#C#A#
+--      #########
+
+pricePerUnit :: Amphipod -> Price
+pricePerUnit Amber = 1
+pricePerUnit Bronze = 10
+pricePerUnit Copper = 100
+pricePerUnit Desert = 1000
+
+parseInput :: T.Text -> Either P.ParseError Burrow
+parseInput text = return $ Burrow hallway amber bronze copper desert
+  where
+    hallway = Hallway $ A.listArray (Leftmost, Rightmost) (repeat Nothing)
+    amber = Room (Just Bronze) (Just Amber)
+    bronze = Room (Just Copper) (Just Desert)
+    copper = Room (Just Bronze) (Just Copper)
+    desert = Room (Just Desert) (Just Amber)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- parseInput :: T.Text -> Either P.ParseError Burrow
+-- parseInput = P.parse (parseBurrow <* P.eof) ""
+-- 
+-- parseBurrow :: P.Parsec T.Text () Burrow
+-- parseBurrow = do
+--     P.count 2 skipLine
+--     P.string "###"
+--     a1 <- parseAmphipod
+--     P.char '#'
+--     a2 <- parseAmphipod
+--     P.char '#'
+--     a3 <- parseAmphipod
+--     P.char '#'
+--     a4 <- parseAmphipod
+--     P.string "###\n"
+--     P.string "  #"
+--     a5 <- parseAmphipod
+--     P.char '#'
+--     a6 <- parseAmphipod
+--     P.char '#'
+--     a7 <- parseAmphipod
+--     P.char '#'
+--     a8 <- parseAmphipod
+--     P.string "#\n"
+--     skipLine
+-- 
+--     return $ Burrow
+--         [ Amphipod a1 (Position Room1 0)
+--         , Amphipod a2 (Position Room2 0)
+--         , Amphipod a3 (Position Room3 0)
+--         , Amphipod a4 (Position Room4 0)
+--         , Amphipod a5 (Position Room1 1)
+--         , Amphipod a6 (Position Room2 1)
+--         , Amphipod a7 (Position Room3 1)
+--         , Amphipod a8 (Position Room4 1)
+--         ]
+--   where
+--     skipLine = P.many (P.oneOf ".# ") >> P.newline
+-- 
+-- parseAmphipod :: P.Parsec T.Text () AmphipodType
+-- parseAmphipod = f <$> P.oneOf "ABCD"
+--   where
+--     f 'A' = Amber
+--     f 'B' = Bronze
+--     f 'C' = Copper
+--     f 'D' = Desert
+--     f err = error $ "Unexpected argument " ++ show err
