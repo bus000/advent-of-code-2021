@@ -183,7 +183,41 @@ main :: IO ()
 main = defaultMain parseInput handleInput
 
 handleInput :: Burrow -> IO ()
-handleInput = print
+handleInput = print . move
+
+organized :: Burrow -> [(Burrow, Int)]
+organized (Burrow pods) = go initialQueue
+  where
+    go :: PQ.PSQ Point Distance -> [(Point, Int)]
+    go queue = case PQ.minView queue of
+        Nothing -> []
+        Just (_ :-> Infinity, _) -> []
+        Just (point :-> Final price, queue') ->
+            (point, price) : go (updateNeighbours queue' point price)
+
+    initialQueue :: PQ.PSQ Point Distance
+    initialQueue
+        = PQ.adjust (const (Final 0)) from
+        . PQ.fromList
+        . map (:-> Infinity)
+        . Map.keys
+        $ risk
+
+    updateNeighbours ::
+        PQ.PSQ Point Distance -> Point -> Int -> PQ.PSQ Point Distance
+    updateNeighbours q point currentPrice =
+        L.foldl' (setMinPrice currentPrice) q $ neighbours point
+
+    neighbours :: Point -> [(Point, Int)]
+    neighbours (x, y)
+        = Maybe.catMaybes
+        . map (\point -> Map.lookup point risk >>= \price -> pure (point, price))
+        $ [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+
+    setMinPrice ::
+        Int -> PQ.PSQ Point Distance -> (Point, Int) -> PQ.PSQ Point Distance
+    setMinPrice currentPrice q (point, price) =
+        PQ.adjust (\p -> min p (Final $ currentPrice + price)) point q
 
 -- Compute all possible moves from the burrow given with the price of that
 -- movement.
@@ -198,14 +232,12 @@ move burrow
     collapseEither (Right result) = result
 
 movePod :: Burrow -> Path -> Either String (Burrow, Price)
-movePod (Burrow pods) path = case Map.lookup start pods of
-    Just pod -> Right (removed, pathPrice path pod)
+movePod (Burrow pods) path@(Path start _ end) = case Map.lookup start pods of
+    Just pod ->
+        let inserted = Map.insert end pod pods
+            removed = Map.delete start inserted
+        in Right (Burrow removed, pathPrice path pod)
     Nothing -> Left $ "Pod could not be found at position " <> show start <> "."
-  where
-    start = _start path
-    end = _end path
-    inserted = Map.insert end pods
-    removed = Map.delete start inserted
 
 -- Find all moves possible in the current burrow.
 moves :: Burrow -> [Path]
@@ -335,7 +367,7 @@ pathHome R1 DesertTop = Path (Hallway R1) [] (Room DesertTop)
 pathHome R1 DesertBottom = Path (Hallway R1) [Room DesertTop] (Room DesertBottom)
 pathHome R1 end = prependPath (Hallway R1) (pathHome M3 end)
 
-pathHome R2 end = prependPath (Hallway R2) (pathHome R2 end)
+pathHome R2 end = prependPath (Hallway R2) (pathHome R1 end)
 
 pathOut :: RoomPosition -> HallwayPosition -> Path
 pathOut room hallway = reversePath $ pathHome hallway room
