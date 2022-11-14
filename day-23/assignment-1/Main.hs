@@ -138,6 +138,7 @@ import qualified Data.Text as T
 import qualified Text.Parsec as P
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
+import qualified Util as Util
 
 data Amphipod = Amber | Bronze | Copper | Desert deriving (Show, Eq, Ord)
 
@@ -183,41 +184,27 @@ main :: IO ()
 main = defaultMain parseInput handleInput
 
 handleInput :: Burrow -> IO ()
-handleInput = print . move
+handleInput = print . findSolution
 
-organized :: Burrow -> [(Burrow, Int)]
-organized (Burrow pods) = go initialQueue
+findSolution :: Burrow -> Maybe (Burrow, Price)
+findSolution = Maybe.listToMaybe . filter (isDone . fst) . reachableStates
+--findSolution :: Burrow -> [(Burrow, Price)]
+--findSolution = takeWhile (not . isDone . fst) . reachableStates
   where
-    go :: PQ.PSQ Point Distance -> [(Point, Int)]
-    go queue = case PQ.minView queue of
-        Nothing -> []
-        Just (_ :-> Infinity, _) -> []
-        Just (point :-> Final price, queue') ->
-            (point, price) : go (updateNeighbours queue' point price)
+    isDone = (==) done
+    done = Burrow . Map.fromList $
+        [ (Room AmberTop, Amber)
+        , (Room AmberBottom, Amber)
+        , (Room BronzeTop, Bronze)
+        , (Room BronzeBottom, Bronze)
+        , (Room CopperTop, Copper)
+        , (Room CopperBottom, Copper)
+        , (Room DesertTop, Desert)
+        , (Room DesertBottom, Desert)
+        ]
 
-    initialQueue :: PQ.PSQ Point Distance
-    initialQueue
-        = PQ.adjust (const (Final 0)) from
-        . PQ.fromList
-        . map (:-> Infinity)
-        . Map.keys
-        $ risk
-
-    updateNeighbours ::
-        PQ.PSQ Point Distance -> Point -> Int -> PQ.PSQ Point Distance
-    updateNeighbours q point currentPrice =
-        L.foldl' (setMinPrice currentPrice) q $ neighbours point
-
-    neighbours :: Point -> [(Point, Int)]
-    neighbours (x, y)
-        = Maybe.catMaybes
-        . map (\point -> Map.lookup point risk >>= \price -> pure (point, price))
-        $ [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
-
-    setMinPrice ::
-        Int -> PQ.PSQ Point Distance -> (Point, Int) -> PQ.PSQ Point Distance
-    setMinPrice currentPrice q (point, price) =
-        PQ.adjust (\p -> min p (Final $ currentPrice + price)) point q
+reachableStates :: Burrow -> [(Burrow, Price)]
+reachableStates burrow = Util.dijkstra burrow move
 
 -- Compute all possible moves from the burrow given with the price of that
 -- movement.

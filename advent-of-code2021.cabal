@@ -11,7 +11,8 @@ cabal-version:       >=1.10
 library
   build-depends:       base >=4.12 && <4.13,
                        text ==1.2.*,
-                       containers ==0.6.*
+                       containers ==0.6.*,
+                       PSQueue ==1.1.*
   exposed-modules:     AdventOfCode,
                        Util,
                        Data.CircularList,
